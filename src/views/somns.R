@@ -54,10 +54,7 @@ source(paste0(lib_dir, "/common.R"), chdir=TRUE)
 suppressMessages(library(dplyr))
 library(stringr)
 
-baseline_hash6 <- substr(baseline_hash, 1, 6)
-change_hash6 <- substr(change_hash, 1, 6)
 cmds <- str_split(extra_cmd, ";")[[1]]
-
 
 ## Further configuration
 fast_color <- "#e4ffc7"
@@ -90,7 +87,13 @@ output_file_connection <- file(output_file, "w+")
 ## Load Data
 if (cmds[1] == "from-file") {
   # manual from-file: result <- rbind(load_data_file("~/Projects/ReBenchDB/tmp/TruffleSOM-380.qs"), load_data_file("~/Projects/ReBenchDB/tmp/TruffleSOM-381.qs"))
-  result <- rbind(load_data_file(cmds[2]), load_data_file(cmds[3]))
+  base_data <- load_data_file(cmds[2])
+  change_data <- load_data_file(cmds[3])
+  if (baseline_hash == "") {
+    baseline_hash <- as.character(base_data$commitid[[1]])
+    change_hash <- as.character(change_data$commitid[[1]])
+  }
+  result <- rbind(base_data, change_data)
   result <- factorize_result(result)
 } else {
   # load_and_install_if_necessary("psych")   # uses only geometric.mean
