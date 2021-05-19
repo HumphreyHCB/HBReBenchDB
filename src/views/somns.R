@@ -102,13 +102,26 @@ if (cmds[1] == "from-file") {
   disconnect_rebenchdb(rebenchdb)
 }
 
-exes_colors <- setNames(
-  c("#729fcf", "#e9b96e", "#8ae234", "#ad7fa8", "#fcaf3e", "#ef2929", "#fce94f")[1:length(levels(result$exe))],
-  levels(result$exe))
+baseline_hash6 <- substr(baseline_hash, 1, 6)
+change_hash6 <- substr(change_hash, 1, 6)
 
-exes_colors_light <- setNames(
-  c("#97c4f0", "#efd0a7", "#b7f774", "#e0c0e4", "#ffd797", "#f78787", "#fffc9c")[1:length(levels(result$exe))],
-  levels(result$exe))
+### Color Setup
+std_dark_colors <- c("#729fcf", "#e9b96e", "#8ae234", "#ad7fa8", "#fcaf3e", "#ef2929", "#fce94f")
+std_light_colors <- c("#97c4f0", "#efd0a7", "#b7f774", "#e0c0e4", "#ffd797", "#f78787", "#fffc9c")
+
+num_exes <- length(levels(result$exe))
+
+if (num_exes > length(std_dark_colors)) {
+  library(colorspace)
+  dark_colors <- qualitative_hcl(num_exes)
+  light_colors <- qualitative_hcl(num_exes, l = 80)
+} else {
+  dark_colors <- std_dark_colors[1:num_exes]
+  light_colors <- std_light_colors[1:num_exes]
+}
+
+exes_colors       <- setNames(dark_colors, levels(result$exe))
+exes_colors_light <- setNames(light_colors, levels(result$exe))
 
 chg_colors <- setNames(
   c("#729fcf", "#e9b96e"),
