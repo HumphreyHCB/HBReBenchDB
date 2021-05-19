@@ -118,8 +118,8 @@ chg_colors_light <- setNames(
 ## Process Data
 warmup <- result %>%
   filter(!grepl("startup", suite, fixed = TRUE),
-         !grepl("interp", exe, fixed = TRUE)) %>%
-  droplevels()
+         !grepl("interp", exe, fixed = TRUE))
+  # %>% droplevels()
 
 peak <- result %>%
   group_by(commitid, exe, suite, bench,
@@ -254,8 +254,7 @@ restrict_to_change_data <- function(data) {
   data %>%
     ungroup() %>%
     filter(commitid == change_hash6) %>%
-    select(!commitid) %>%
-    droplevels()
+    select(!commitid) # %>% droplevels()
 }
 
 change_data <- result %>%
@@ -270,6 +269,18 @@ suites_for_comparison <- exes_and_suites %>%
   count() %>%
   filter(n > 1) %>%
   droplevels()
+
+exes_and_benchmarks <- change_data %>%
+  select(c(exe, suite, bench,
+           varvalue, cores, inputsize, extraargs)) %>%
+  unique()
+
+benchmarks_for_comparison <- exes_and_benchmarks %>%
+  filter(!(suite %in% suites_for_comparison$suite)) %>%
+  group_by(bench,
+           varvalue, cores, inputsize, extraargs) %>%
+  count() %>%
+  filter(n > 1)
 
 ## Generate Navigation
 
@@ -304,6 +315,22 @@ if (nrow(suites_for_comparison) > 0) {
   
   out('</nav>\n')
 }
+
+if (nrow(benchmarks_for_comparison) > 0) {
+  out('<a href="#bench-comparisons">Benchmark Comparisons</a>\n')
+  out('<nav>\n')
+  
+  bfc_str <- data.frame(lapply(benchmarks_for_comparison, as.character), stringsAsFactors = FALSE)
+  
+  for (i in 1:nrow(benchmarks_for_comparison)) {
+    row <- bfc_str[i, ]
+    out('<a href="#b-comp-', paste(row, collapse = "-") ,'">', paste(row, collapse = " ") ,'</a>\n')
+  }
+  
+  out('</nav>\n')
+}
+
+
 out('</nav>\n')
 
 
@@ -604,6 +631,109 @@ if (nrow(suites_for_comparison) > 0) {
       norm_s, stats_s, warmup_s, row_count + 1, exe, exes_colors, exes_colors_light)
   }
 
+}
+
+
+
+
+## Output the Benchmark Comparison
+
+if (nrow(benchmarks_for_comparison) > 0) {
+  out('<h2 id="bench-comparisons">Benchmark Comparisons</h2>\n')
+
+  bfc_str <- data.frame(lapply(benchmarks_for_comparison, as.character), stringsAsFactors = FALSE)
+  for (i in 1:nrow(benchmarks_for_comparison)) {
+    # i <- 1
+    row_str <- bfc_str[i, ]
+    row <- benchmarks_for_comparison[i, ]
+    
+    row_id <- paste(row_str, collapse = "-")
+    
+    # s <- "macro-startup"
+    out('<h3 id="b-comp-', row_id, '">', paste(row_str, collapse = " "), '</h3>\n')
+    
+    change_b <- change_data %>%
+      filter(bench == row$bench, varvalue == row$varvalue, cores == row$cores,
+             inputsize == row$inputsize, extraargs == row$extraargs) %>%
+      droplevels()
+    exes <- sort(levels(change_b$exe))
+    baseline_exe <- exes[[1]]
+    
+    out("<p>Baseline: ", baseline_exe, "</p>")
+    
+    
+    warmup_b <- warmup %>%
+      restrict_to_change_data() %>%
+      filter(bench == row$bench, varvalue == row$varvalue, cores == row$cores,
+             inputsize == row$inputsize, extraargs == row$extraargs) %>%
+      droplevels()
+    
+    peak_b <- peak %>%
+      restrict_to_change_data() %>%
+      filter(bench == row$bench, varvalue == row$varvalue, cores == row$cores,
+             inputsize == row$inputsize, extraargs == row$extraargs) %>%
+      select(-c(suite)) %>%
+      droplevels()
+    
+    base_b <- peak_b %>%
+      filter(exe == baseline_exe) %>%
+      group_by(bench,
+               varvalue, cores, inputsize, extraargs) %>%
+      summarise(base_mean = mean(value),
+                base_median = median(value),
+                .groups = "drop")
+    
+    norm_b <- peak_b %>%
+      left_join(base_b, by = c(
+        "bench", "varvalue", "cores", "inputsize", "extraargs")) %>%
+      group_by(bench, varvalue, cores, inputsize, extraargs) %>%
+      transform(ratio_mean = value / base_mean,
+                ratio_median = value / base_median)
+    
+    
+    stats_b <- norm_b %>%
+      group_by(exe, bench,
+               varvalue, cores, inputsize, extraargs) %>%
+      filter(is.na(warmup) | iteration >= warmup) %>%
+      calculate_stats()
+    
+    not_in_both_b <- stats_b %>%
+      filter(is.na(ratio)) %>%
+      droplevels()
+    
+    stats_b <- stats_b %>%
+      filter(!is.na(ratio)) %>%
+      droplevels()
+    
+    p <- ggplot(stats_b, aes(ratio, exe, fill=exe)) +
+      geom_vline(aes(xintercept=1), colour="#999999", linetype="solid") +
+      geom_vline(aes(xintercept=slower_runtime_ratio), colour="#cccccc", linetype="dashed") +
+      geom_vline(aes(xintercept=faster_runtime_ratio), colour="#cccccc", linetype="dashed") +
+      geom_boxplot(aes(colour = exe),
+                   outlier.size = 0.9,
+                   outlier.alpha = 0.6) +
+      stat_summary(fun = negative_geometric.mean,
+                   size = 1, colour = "#503000", geom = "point") +
+      scale_x_log10() +
+      scale_y_discrete(limits = rev) +
+      ylab("") +
+      #coord_cartesian(xlim=c(0.5, 2.5)) +
+      theme_simple(8) +
+      scale_color_manual(values = exes_colors) +
+      scale_fill_manual(values = exes_colors_light) +
+      # scale_fill_manual(breaks=c("slower", "faster", "indeterminate"),
+      #                   values=c(slow_color, fast_color, NA)) +
+      theme(legend.position = "none")
+    
+    ggsave(paste0('overview.', row_id, '.svg'), p, "svg", output_dir, width = 4.5, height = 2.5, units = "in")
+    ggsave(paste0('overview.', row_id, '.png'), p, "png", output_dir, width = 4.5, height = 2.5, units = "in")
+    
+    out('<img src="', output_url, '/overview.', row_id, '.svg">')
+    
+    row_count <- perf_diff_table_es(
+      norm_b, stats_b, warmup_b, row_count + 1, exe, exes_colors, exes_colors_light)
+  }
+  
 }
 
 time <- timing.stop()
