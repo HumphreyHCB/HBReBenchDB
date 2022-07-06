@@ -517,7 +517,7 @@ perf_diff_table_es <- function(data_es, stats_es, warmup_es, profiles_es, start_
       }
       
       out('<td><button type="button" class="btn btn-sm btn-cmdline" data-content="<code>', cmdline, '</code>"></button>\n')
-
+      out('<td><button type="button" class="btn btn-environment" ></button>\n') 
       warmup_ea <- warmup_es %>%
         filter(bench == b, varvalue == v, cores == c, inputsize == i, extraargs == ea) %>%
         droplevels()
