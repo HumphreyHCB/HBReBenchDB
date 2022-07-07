@@ -46,7 +46,7 @@ main_data_select <- "
       cmdline, varValue, cores, inputSize, extraArgs,
       invocation, iteration, warmup,
       criterion.name as criterion, criterion.unit as unit,
-      value "
+      value,  warmup, hostname, ostype, memory, cpu, clockspeed"
 
 main_data_from <- "
     FROM Measurement
@@ -57,7 +57,8 @@ main_data_from <- "
       JOIN Run ON runId = run.id
       JOIN Suite ON suiteId = suite.id
       JOIN Benchmark ON benchmarkId = benchmark.id
-      JOIN Executor ON execId = executor.id "
+      JOIN Executor ON execId = executor.id 
+      JOIN Environment ON Environment.id = envid "
 
 get_measures_for_comparison <- function(rebenchdb, hash_1, hash_2) {
   qry <- dbSendQuery(rebenchdb,
@@ -87,7 +88,7 @@ profile_available_select <- "
   SELECT expId, runId, trialId, substring(commitId, 1, 6) as commitid,
     benchmark.name as bench, executor.name as exe, suite.name as suite,
     cmdline, varValue, cores, inputSize, extraArgs,
-    invocation, numIterations, warmup "
+    invocation, numIterations"
 
 profile_available_from <- "
   FROM ProfileData
@@ -97,7 +98,8 @@ profile_available_from <- "
     JOIN Run ON runId = run.id
     JOIN Suite ON suiteId = suite.id
     JOIN Benchmark ON benchmarkId = benchmark.id
-    JOIN Executor ON execId = executor.id "
+    JOIN Executor ON execId = executor.id 
+    "
 
 get_profile_availability <- function(rebenchdb, hash_1, hash_2) {
   qry <- dbSendQuery(rebenchdb,
@@ -124,6 +126,11 @@ factorize_result <- function(result) {
   result$cores <- factor(result$cores)
   result$inputsize <- forcats::fct_explicit_na(factor(result$inputsize), na_level = "")
   result$extraargs <- forcats::fct_explicit_na(factor(result$extraargs), na_level = "")
+  #result$hostname <- result$hostname
+  #result$ostype <- factor(result$ostype)
+  #result$memory <- result$memory
+  #result$cpu <- factor(result$cpu)
+  #result$clockspeed <- result$clockspeed
   
   if ("criterion" %in% colnames(result)) {
     result$criterion <- factor(result$criterion)
