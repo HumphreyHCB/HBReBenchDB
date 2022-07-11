@@ -396,12 +396,9 @@ perf_diff_table_es <- function(data_es, stats_es, warmup_es, profiles_es, start_
     for (c in levels(data_v$cores)) {      data_c  <- data_v %>% filter(cores == c)      %>% droplevels()
     for (i in levels(data_c$inputsize)) {  data_i  <- data_c %>% filter(inputsize == i)  %>% droplevels()
     for (ea in levels(data_i$extraargs)) { data_ea <- data_i %>% filter(extraargs == ea) %>% droplevels()    
-    #print(summary(data_ea))
-    #gfg
+
     for (en in levels(data_ea$envid)) { data_en <- data_ea %>% filter(envid == en) %>% droplevels()
-    #print("point 0")
-    #if (length(levels(data_ea$hostname))  > 1) { environment <- data_ea$hostname}
-    # environment <- results$hostname
+
 
 
     args <- ""
@@ -409,7 +406,7 @@ perf_diff_table_es <- function(data_es, stats_es, warmup_es, profiles_es, start_
     if (length(levels(data_v$cores))     > 1) { args <- paste0(args, c) }
     if (length(levels(data_c$inputsize)) > 1) { args <- paste0(args, i) }
     if (length(levels(data_i$extraargs)) > 1) { args <- paste0(args, ea) }
-    #if (length(levels(data_ea$en)) > 1) { args <- paste0(args, en) }
+    
     if (nchar(args) > 0) {
       args <- paste0('<span class="all-args">', args, '</span>')
     }
@@ -417,20 +414,16 @@ perf_diff_table_es <- function(data_es, stats_es, warmup_es, profiles_es, start_
     # capture the beginning of the path but leave the last element of it
     # this regex is also used in render.js's renderBenchmark() function
     cmdline <- str_replace_all(data_i$cmdline[[1]], "^([^\\s]*)((?:\\/\\w+)\\s.*$)", ".\\2")
-   # print("point 0.2")
+    environmentStr <- paste0("Hostname: ", as.character(environmentsframe[levels(data_en$envid), 2])," |  OS Type: ", as.character(environmentsframe[levels(data_en$envid), 3])," |  Memory: ", as.character(environmentsframe[levels(data_en$envid), 4]), " |  CPU: ", as.character(environmentsframe[levels(data_en$envid), 5]), " |  Clockspeed: " ,as.character(environmentsframe[levels(data_en$envid), 6]))
     stats_b_total <- stats_es %>%
-      ungroup() %>%
-      #, envid == en
+      ungroup() %>%     
       filter(bench == b, varvalue == v, cores == c, inputsize == i, extraargs == ea, criterion == "total") %>%
       droplevels()
-    #print("point 0.3")
     stats_b_gctime <- stats_es %>%
       ungroup() %>%
       filter(bench == b, varvalue == v, cores == c, inputsize == i, extraargs == ea, criterion == "GC time") %>%
       droplevels()
 
-    #print("point 1")
-    
     if ("commitid" %in% colnames(stats_b_total)) {
       stats_b_total <- stats_b_total %>%
         filter(commitid == change_hash6) %>%
@@ -531,15 +524,17 @@ perf_diff_table_es <- function(data_es, stats_es, warmup_es, profiles_es, start_
         }
         out('</td>\n')
       }
-      #print("point 2")
-      #print(levels(data_en$envid))
-      #print(environmentsframe[levels(data_en$envid), 2])
-      #print(as.character(environmentsframe[levels(data_en$envid), 2]))
 
-      out('<td><button type="button" eclass="btn btn-sm btn-cmdline" data-content="<code>', cmdline, '</code>"></button>\n')
-      out('<td><button type="button" class="btn btn-environment" data-content="', as.character(environmentsframe[levels(data_en$envid), 2]) ,'"></button>\n') 
-      #print("point 3")
-      #out('<td><button type="button" class="btn btn-environment" data-content="', paste(result$ostype, result$hostname , result$ostype ,result$memory , result$cpu ,  result$clockspeed), '"> ></button>\n') 
+      out('<td><button type="button" class="btn btn-sm btn-cmdline" data-content="<code>', cmdline, '</code>"></button>\n')
+      out('<button type="button" class="btn btn-sm btn-environment" data-toggle="popover" data-placement="top"
+        data-content="',environmentStr,'" >
+        </button>')
+      out('<script>
+          $(document).ready(function(){
+          $(', paste0( "'", '[data-toggle="popover"]' , "'" ) ,').popover();   
+          });
+          </script>')
+      #out('<td><button type="button" class="btn btn-environment" data-content="', as.character(environmentsframe[levels(data_en$envid), 2]) ,'"></button>\n') 
       warmup_ea <- warmup_es %>%
         filter(bench == b, varvalue == v, cores == c, inputsize == i, extraargs == ea) %>%
         droplevels()
