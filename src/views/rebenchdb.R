@@ -101,6 +101,7 @@ profile_available_from <- "
     JOIN Executor ON execId = executor.id 
     "
 
+# fetch all benchmarks information from the database
 get_environments <- function(){
   qry <- dbSendQuery(rebenchdb, "SELECT id, hostname, ostype, memory, cpu, clockspeed FROM environment")
   result <- dbFetch(qry)

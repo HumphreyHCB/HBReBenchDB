@@ -414,7 +414,10 @@ perf_diff_table_es <- function(data_es, stats_es, warmup_es, profiles_es, start_
     # capture the beginning of the path but leave the last element of it
     # this regex is also used in render.js's renderBenchmark() function
     cmdline <- str_replace_all(data_i$cmdline[[1]], "^([^\\s]*)((?:\\/\\w+)\\s.*$)", ".\\2")
+
+    # format all environment information into a single string
     environmentStr <- paste0("Hostname: ", as.character(environmentsframe[levels(data_en$envid), 2])," |  OS Type: ", as.character(environmentsframe[levels(data_en$envid), 3])," |  Memory: ", as.character(environmentsframe[levels(data_en$envid), 4]), " |  CPU: ", as.character(environmentsframe[levels(data_en$envid), 5]), " |  Clockspeed: " ,as.character(environmentsframe[levels(data_en$envid), 6]))
+    
     stats_b_total <- stats_es %>%
       ungroup() %>%     
       filter(bench == b, varvalue == v, cores == c, inputsize == i, extraargs == ea, criterion == "total") %>%
@@ -526,16 +529,15 @@ perf_diff_table_es <- function(data_es, stats_es, warmup_es, profiles_es, start_
       }
 
       out('<td><button type="button" class="btn btn-sm btn-cmdline" data-content="<code>', cmdline, '</code>"></button>\n')
-      out('<button type="button" class="btn btn-sm btn-environment" data-toggle="popover" data-placement="top"
-        data-content="',environmentStr,'" >
-        </button>')
+      out('<button type="button" class="btn btn-sm btn-environment" data-toggle="popover" data-placement="top" data-content="',environmentStr,'" ></button>')
+      
+      # script to implement the popover for the environment button
       out('<script>
           $(document).ready(function(){
           $(', paste0( "'", '[data-toggle="popover"]' , "'" ) ,').popover();   
           });
           </script>')
-      #out('<td><button type="button" class="btn btn-environment" data-content="', as.character(environmentsframe[levels(data_en$envid), 2]) ,'"></button>\n') 
-      warmup_ea <- warmup_es %>%
+       warmup_ea <- warmup_es %>%
         filter(bench == b, varvalue == v, cores == c, inputsize == i, extraargs == ea) %>%
         droplevels()
 
