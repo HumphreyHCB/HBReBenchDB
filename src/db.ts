@@ -255,7 +255,7 @@ export abstract class Database {
       name: 'insertMeasurement',
       text: `INSERT INTO Measurement
           (runId, trialId, invocation, criterion, value)
-        VALUES ($1, $2, $3, $4, ARRAY [$5])
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT DO NOTHING`,
       values: <any[]>[]
     },
@@ -265,16 +265,16 @@ export abstract class Database {
       text: `INSERT INTO Measurement
           (runId, trialId, invocation, criterion, value)
         VALUES
-            ($1, $2, $3, $4, ARRAY [$5]),
-            ($6, $7, $8, $9, ARRAY [$10]),
-            ($11, $12, $13, $14, ARRAY [$15]),
-            ($16, $17, $18, $19, ARRAY [$20]),
-            ($21, $22, $23, $24, ARRAY [$25]),
-            ($26, $27, $28, $29, ARRAY [$30]),
-            ($31, $32, $33, $34, ARRAY [$35]),
-            ($36, $37, $38, $39, ARRAY [$40]),
-            ($41, $42, $43, $44, ARRAY [$45]), 
-            ($46, $47, $48, $49, ARRAY [$50]) 
+            ($1, $2, $3, $4, $5),
+            ($6, $7, $8, $9, $10),
+            ($11, $12, $13, $14, $15),
+            ($16, $17, $18, $19, $20),
+            ($21, $22, $23, $24, $25),
+            ($26, $27, $28, $29, $30),
+            ($31, $32, $33, $34, $35),
+            ($36, $37, $38, $39, $40),
+            ($41, $42, $43, $44, $45), 
+            ($46, $47, $48, $49, $50) 
           ON CONFLICT DO NOTHING`,
       values: <any[]>[]
     },
@@ -299,11 +299,11 @@ export abstract class Database {
     },
 
     fetchMaxMeasurements: `SELECT
-        runId, criterion, invocation as inv
+        runId, criterion, invocation as inv, cardinality(value) as ite
       FROM Measurement
       WHERE trialId = $1
-      GROUP BY runId, criterion, invocation
-      ORDER BY runId, inv, criterion`,
+      GROUP BY runId, criterion, invocation, ite
+      ORDER BY runId, inv, ite, criterion`,
 
     insertTimelineJob: `INSERT INTO TimelineCalcJob
                           (trialId, runId, criterion)
@@ -361,7 +361,6 @@ export abstract class Database {
     });
   }
 
-  
   private generateBatchInsert(numTuples: number, sizeTuples: number) {
     const nums: string[] = [];
     for (let i = 0; i < numTuples; i += 1) {
@@ -834,7 +833,6 @@ export abstract class Database {
         !(r.inv in crit),
         `${r.runid}, ${r.criterion}, ${r.inv} in ${JSON.stringify(crit)}`
       );
-      // still needed?
       crit[r.inv] = r.ite;
     }
 
@@ -862,8 +860,7 @@ export abstract class Database {
     let recordedMeasurements = 0;
 
     while (batchedValues.length > 0) {
-      // there are 6 parameters, i.e., values
-      // now 5 (come back and tidy up this comment if all goes well)
+      // there are 5 parameters, i.e., values
       const rest = batchedValues.splice(5 * 1);
       try {
         const result = await this.recordMeasurement(batchedValues);
@@ -913,7 +910,7 @@ export abstract class Database {
   ): Promise<number> {
     let recordedMeasurements = 0;
     let batchedValues: any[] = [];
-    let iterationMap = new Map<string, Array<number>>();
+    let iterationMap = new Map<string, Array<Number>>();
     const updateJobs = new TimelineUpdates(this);
 
     for (const d of dataPoints) {
@@ -950,21 +947,19 @@ export abstract class Database {
         else{
           iterationMap.set(iMID,[m.v])                 
         }
-
         
         updateJobs.recorded(values[1], values[0], values[4]);
         
       }
     }
     // build list of batchedValues
-    iterationMap.forEach((value : Array<number>, key: string)=>{
+    iterationMap.forEach((value : Array<Number>, key: string)=>{
       batchedValues = batchedValues.concat(key.split(' ').map(Number) ,[value]);
     });
 
 
     while (batchedValues.length >= 5 * 10) {
-      // there are 6 parameters, i.e., values
-      //now 5
+      // there are 5 parameters, i.e., values
       const rest = batchedValues.splice(5 * 10);
       try {
         const result = await this.recordMeasurementBatched10(batchedValues);
@@ -1062,14 +1057,14 @@ export abstract class Database {
 
   public async recordMeasurementBatchedN(values: any[]): Promise<number> {
     const q = this.queries.insertMeasurementBatchedN;
-    // [runId, trialId, invocation, iteration, critId, value];
+    // [runId, trialId, invocation, critId, value];
     q.values = values;
     return (await this.query(q)).rowCount;
   }
 
   public async recordMeasurement(values: any[]): Promise<number> {
     const q = this.queries.insertMeasurement;
-    // [runId, trialId, invocation, iteration, critId, value];
+    // [runId, trialId, invocation, critId, value];
     q.values = values;
     return (await this.query(this.queries.insertMeasurement)).rowCount;
   }
