@@ -183,7 +183,7 @@ CREATE TABLE Measurement (
   criterion smallint,
   invocation smallint,
   
-  value float4 [] NOT NULL,
+  value float4[] NOT NULL,
 
   primary key (invocation, runId, trialId, criterion),
   foreign key (trialId) references Trial (id),
