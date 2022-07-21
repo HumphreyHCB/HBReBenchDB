@@ -20,7 +20,7 @@ source("../views/rebenchdb.R", chdir = TRUE)
 source("../views/stats.R", chdir = TRUE)
 
 suppressMessages(library(dplyr))
-
+library(tidyr)
 rebenchdb <- connect_to_rebenchdb(db_name, db_user, db_pass)
 
 dbBegin(rebenchdb)
@@ -39,7 +39,22 @@ SELECT m.runId, m.trialId, m.criterion, m.value
 result <- dbFetch(qry)
 dbClearResult(qry)
 dbCommit(rebenchdb)
+convert_array <- function(x) {
+    x <- gsub("(^\\{|\\}$)", "", x)
+    strsplit(x, split = ",")
+}
 
+convert_double_array <- function(x) {
+    lapply(convert_array(x), as.double)
+}
+
+result <-
+   result %>% 
+    collect() %>%
+    mutate(value = convert_double_array(value)) 
+
+
+result <- unnest(result, cols = c(value))   
 
 # View(result)
 # result$runid <- factor(result$runid)

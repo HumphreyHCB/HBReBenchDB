@@ -159,9 +159,8 @@ export interface Measurement {
   trialid: number;
   criterion: number;
   invocation: number;
-  iteration: number;
 
-  value: number;
+  value: number[];
 }
 
 export interface Baseline extends Source {
@@ -255,8 +254,8 @@ export abstract class Database {
     insertMeasurement: {
       name: 'insertMeasurement',
       text: `INSERT INTO Measurement
-          (runId, trialId, invocation, iteration, criterion, value)
-        VALUES ($1, $2, $3, $4, $5, $6)
+          (runId, trialId, invocation, criterion, value)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT DO NOTHING`,
       values: <any[]>[]
     },
@@ -264,18 +263,18 @@ export abstract class Database {
     insertMeasurementBatched10: {
       name: 'insertMeasurement10',
       text: `INSERT INTO Measurement
-          (runId, trialId, invocation, iteration, criterion, value)
+          (runId, trialId, invocation, criterion, value)
         VALUES
-          ($1, $2, $3, $4, $5, $6),
-          ($7, $8, $9, $10, $11, $12),
-          ($13, $14, $15, $16, $17, $18),
-          ($19, $20, $21, $22, $23, $24),
-          ($25, $26, $27, $28, $29, $30),
-          ($31, $32, $33, $34, $35, $36),
-          ($37, $38, $39, $40, $41, $42),
-          ($43, $44, $45, $46, $47, $48),
-          ($49, $50, $51, $52, $53, $54),
-          ($55, $56, $57, $58, $59, $60)
+            ($1, $2, $3, $4, $5),
+            ($6, $7, $8, $9, $10),
+            ($11, $12, $13, $14, $15),
+            ($16, $17, $18, $19, $20),
+            ($21, $22, $23, $24, $25),
+            ($26, $27, $28, $29, $30),
+            ($31, $32, $33, $34, $35),
+            ($36, $37, $38, $39, $40),
+            ($41, $42, $43, $44, $45), 
+            ($46, $47, $48, $49, $50) 
           ON CONFLICT DO NOTHING`,
       values: <any[]>[]
     },
@@ -283,7 +282,7 @@ export abstract class Database {
     insertMeasurementBatchedN: {
       name: 'insertMeasurementN',
       text: `INSERT INTO Measurement
-          (runId, trialId, invocation, iteration, criterion, value)
+          (runId, trialId, invocation, criterion, value)
         VALUES
           GENERATED`,
       values: <any[]>[]
@@ -300,10 +299,10 @@ export abstract class Database {
     },
 
     fetchMaxMeasurements: `SELECT
-        runId, criterion, invocation as inv, max(iteration) as ite
+        runId, criterion, invocation as inv, cardinality(value) as ite
       FROM Measurement
       WHERE trialId = $1
-      GROUP BY runId, criterion, invocation
+      GROUP BY runId, criterion, invocation, ite
       ORDER BY runId, inv, ite, criterion`,
 
     insertTimelineJob: `INSERT INTO TimelineCalcJob
@@ -353,8 +352,8 @@ export abstract class Database {
     this.projects = new Map();
 
     this.queries.insertMeasurementBatchedN.text = `INSERT INTO Measurement
-         (runId, trialId, invocation, iteration, criterion, value)
-       VALUES ${this.generateBatchInsert(Database.batchN, 6)}
+         (runId, trialId, invocation, criterion, value)
+       VALUES ${this.generateBatchInsert(Database.batchN, 5)}
        ON CONFLICT DO NOTHING`;
 
     this.timelineUpdater = new SingleRequestOnly(async () => {
@@ -369,7 +368,27 @@ export abstract class Database {
       for (let j = 1; j <= sizeTuples; j += 1) {
         tupleNums.push(i * sizeTuples + j);
       }
-      nums.push('($' + tupleNums.join(', $') + ')');
+      // i am sure all of this can be done better and much tidyer
+      let formatedString = '';
+      for (let index = 0; index < tupleNums.length; index++) {
+        if (index == tupleNums.length - 1) {
+          formatedString = formatedString.concat(
+            ', ARRAY [$',
+            tupleNums[index].toString()
+          );
+        } else if (index == 0) {
+          formatedString = formatedString.concat(
+            ' $',
+            tupleNums[index].toString()
+          );
+        } else {
+          formatedString = formatedString.concat(
+            ', $',
+            tupleNums[index].toString()
+          );
+        }
+      }
+      nums.push('(' + formatedString + '] )');
     }
     return nums.join(',\n');
   }
@@ -848,8 +867,8 @@ export abstract class Database {
     let recordedMeasurements = 0;
 
     while (batchedValues.length > 0) {
-      // there are 6 parameters, i.e., values
-      const rest = batchedValues.splice(6 * 1);
+      // there are 5 parameters, i.e., values
+      const rest = batchedValues.splice(5 * 1);
       try {
         const result = await this.recordMeasurement(batchedValues);
         recordedMeasurements += result;
@@ -897,8 +916,8 @@ export abstract class Database {
     availableMs: any
   ): Promise<number> {
     let recordedMeasurements = 0;
-    let batchedMs = 0;
     let batchedValues: any[] = [];
+    const iterationMap = new Map<string, Array<number>>();
     const updateJobs = new TimelineUpdates(this);
 
     for (const d of dataPoints) {
@@ -918,33 +937,40 @@ export abstract class Database {
           continue;
         }
 
-        updateJobs.recorded(values[1], values[0], values[4]);
-        batchedMs += 1;
-        batchedValues = batchedValues.concat(values);
-        if (batchedMs === Database.batchN) {
-          try {
-            const result = await this.recordMeasurementBatchedN(batchedValues);
-            recordedMeasurements += result;
-          } catch (err) {
-            // we may have concurrent inserts, or partially inserted data,
-            // where a request aborted
-            if (isUniqueViolationError(err)) {
-              recordedMeasurements += await this.recordMeasurementsFromBatch(
-                batchedValues
-              );
-            } else {
-              throw err;
-            }
+        let iMID = '';
+        // build a id for each unquie Measurement
+        iMID = iMID.concat(
+          run.id.toString() +
+            ' ' +
+            trial.id.toString() +
+            ' ' +
+            d.in.toString() +
+            ' ' +
+            criteria.get(m.c).id.toString()
+        );
+        if (iterationMap.has(iMID)) {
+          let value = iterationMap.get(iMID);
+          if (value !== undefined) {
+            value = value.concat([m.v]);
+          } else {
+            throw new Error('value is undefined');
           }
-          batchedValues = [];
-          batchedMs = 0;
+          iterationMap.set(iMID, value);
+        } else {
+          iterationMap.set(iMID, [m.v]);
         }
+
+        updateJobs.recorded(values[1], values[0], values[4]);
       }
     }
+    // build list of batchedValues
+    iterationMap.forEach((value: Array<number>, key: string) => {
+      batchedValues = batchedValues.concat(key.split(' ').map(Number), [value]);
+    });
 
-    while (batchedValues.length >= 6 * 10) {
-      // there are 6 parameters, i.e., values
-      const rest = batchedValues.splice(6 * 10);
+    while (batchedValues.length >= 5 * 10) {
+      // there are 5 parameters, i.e., values
+      const rest = batchedValues.splice(5 * 10);
       try {
         const result = await this.recordMeasurementBatched10(batchedValues);
         recordedMeasurements += result;
@@ -1034,20 +1060,21 @@ export abstract class Database {
   public async recordMeasurementBatched10(values: any[]): Promise<number> {
     const q = this.queries.insertMeasurementBatched10;
     // [runId, trialId, invocation, iteration, critId, value];
+    // come back and tidy up comments
     q.values = values;
     return (await this.query(q)).rowCount;
   }
 
   public async recordMeasurementBatchedN(values: any[]): Promise<number> {
     const q = this.queries.insertMeasurementBatchedN;
-    // [runId, trialId, invocation, iteration, critId, value];
+    // [runId, trialId, invocation, critId, value];
     q.values = values;
     return (await this.query(q)).rowCount;
   }
 
   public async recordMeasurement(values: any[]): Promise<number> {
     const q = this.queries.insertMeasurement;
-    // [runId, trialId, invocation, iteration, critId, value];
+    // [runId, trialId, invocation, critId, value];
     q.values = values;
     return (await this.query(this.queries.insertMeasurement)).rowCount;
   }
