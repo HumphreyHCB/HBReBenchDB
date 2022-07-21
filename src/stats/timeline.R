@@ -38,7 +38,23 @@ JOIN Measurement m ON d.trialId = m.trialId AND
 result <- dbFetch(qry)
 dbClearResult(qry)
 dbCommit(rebenchdb)
+print(result)
+convert_array <- function(x) {
+    x <- gsub("(^\\{|\\}$)", "", x)
+    strsplit(x, split = ",")
+}
 
+convert_double_array <- function(x) {
+    lapply(convert_array(x), as.double)
+}
+
+result <-
+   result %>% 
+    collect() %>%
+    mutate(value = convert_double_array(value))
+
+    
+print(result)
 
 # View(result)
 # result$runid <- factor(result$runid)
