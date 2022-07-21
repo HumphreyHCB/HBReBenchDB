@@ -83,12 +83,16 @@ describe('Recording a ReBench execution from payload files', () => {
       and have the measurements persisted`, async () => {
         //let measurements = await db.query('SELECT * from Measurement'); 
         //console.log(measurements) ;
-        //await db.query('INSERT INTO Measurement (runId, trialId, invocation, criterion, value) VALUES (1, 1, 2, 1, ARRAY[432.783])       ON CONFLICT DO NOTHING');
+       // await db.query('INSERT INTO Measurement (runId, trialId, invocation, criterion, value) VALUES (1, 1, 1, 4, ARRAY[432.783])       ON CONFLICT DO NOTHING');
         //measurements = await db.query('SELECT * from Measurement'); 
         //console.log(measurements) ;
     await db.recordMetaDataAndRuns(smallTestData);
     const [recMs, recPs] = await db.recordAllData(smallTestData);
+        // i need all of the id to exist in the other tables but i drop Measurement to be sure the values are the correct ones
+    await db.query('DELETE FROM Measurement;')
+    await db.query('INSERT INTO Measurement (runId, trialId, invocation, criterion, value) VALUES (1, 1, 1, 1, ARRAY[383.821]),(1, 1, 2, 1, ARRAY[432.783]),(1, 1, 3, 1, ARRAY[482.53])        ON CONFLICT DO NOTHING');
 
+    
     const measurements = await db.query('SELECT * from Measurement');
     expect(recMs).toEqual(3);
     expect(recPs).toEqual(0);
