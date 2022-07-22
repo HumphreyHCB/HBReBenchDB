@@ -368,27 +368,7 @@ export abstract class Database {
       for (let j = 1; j <= sizeTuples; j += 1) {
         tupleNums.push(i * sizeTuples + j);
       }
-      // i am sure all of this can be done better and much tidyer
-      let formatedString = '';
-      for (let index = 0; index < tupleNums.length; index++) {
-        if (index == tupleNums.length - 1) {
-          formatedString = formatedString.concat(
-            ', ARRAY [$',
-            tupleNums[index].toString()
-          );
-        } else if (index == 0) {
-          formatedString = formatedString.concat(
-            ' $',
-            tupleNums[index].toString()
-          );
-        } else {
-          formatedString = formatedString.concat(
-            ', $',
-            tupleNums[index].toString()
-          );
-        }
-      }
-      nums.push('(' + formatedString + '] )');
+      nums.push('($' + tupleNums.join(', $') + ')');
     }
     return nums.join(',\n');
   }
