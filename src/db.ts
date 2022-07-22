@@ -369,19 +369,26 @@ export abstract class Database {
         tupleNums.push(i * sizeTuples + j);
       }
       // i am sure all of this can be done better and much tidyer
-      let formatedString = ""
+      let formatedString = '';
       for (let index = 0; index < tupleNums.length; index++) {
         if (index == tupleNums.length - 1) {
-          formatedString = formatedString.concat((', ARRAY [$'),tupleNums[index].toString())
-        }else if (index == 0) {
-            formatedString = formatedString.concat((' $'),tupleNums[index].toString())
-        } 
-        else{
-          formatedString = formatedString.concat((', $'),tupleNums[index].toString())
-        }       
+          formatedString = formatedString.concat(
+            ', ARRAY [$',
+            tupleNums[index].toString()
+          );
+        } else if (index == 0) {
+          formatedString = formatedString.concat(
+            ' $',
+            tupleNums[index].toString()
+          );
+        } else {
+          formatedString = formatedString.concat(
+            ', $',
+            tupleNums[index].toString()
+          );
+        }
       }
       nums.push('(' + formatedString + '] )');
-
     }
     return nums.join(',\n');
   }
@@ -910,7 +917,7 @@ export abstract class Database {
   ): Promise<number> {
     let recordedMeasurements = 0;
     let batchedValues: any[] = [];
-    let iterationMap = new Map<string, Array<Number>>();
+    const iterationMap = new Map<string, Array<number>>();
     const updateJobs = new TimelineUpdates(this);
 
     for (const d of dataPoints) {
@@ -930,31 +937,36 @@ export abstract class Database {
           continue;
         }
 
-        let iMID = ""       
+        let iMID = '';
         // build a id for each unquie Measurement
-        iMID = iMID.concat(run.id.toString() +" "+ trial.id.toString() +" "+ d.in.toString() +" "+ criteria.get(m.c).id.toString())
-        if (iterationMap.has(iMID)) {                    
+        iMID = iMID.concat(
+          run.id.toString() +
+            ' ' +
+            trial.id.toString() +
+            ' ' +
+            d.in.toString() +
+            ' ' +
+            criteria.get(m.c).id.toString()
+        );
+        if (iterationMap.has(iMID)) {
           let value = iterationMap.get(iMID);
           if (value !== undefined) {
+            value = value.concat([m.v]);
           } else {
             throw new Error('value is undefined');
           }
-          value = value.concat([m.v])
-          iterationMap.set(iMID,value)
+          iterationMap.set(iMID, value);
+        } else {
+          iterationMap.set(iMID, [m.v]);
         }
-        else{
-          iterationMap.set(iMID,[m.v])                 
-        }
-        
+
         updateJobs.recorded(values[1], values[0], values[4]);
-        
       }
     }
     // build list of batchedValues
-    iterationMap.forEach((value : Array<Number>, key: string)=>{
-      batchedValues = batchedValues.concat(key.split(' ').map(Number) ,[value]);
+    iterationMap.forEach((value: Array<number>, key: string) => {
+      batchedValues = batchedValues.concat(key.split(' ').map(Number), [value]);
     });
-
 
     while (batchedValues.length >= 5 * 10) {
       // there are 5 parameters, i.e., values

@@ -108,7 +108,7 @@ describe('Test Dashboard with basic test data loaded', () => {
   it('Should get results', async () => {
     const results = (await dashResults(1, db)).timeSeries;
     expect(results['NBody']).toHaveLength(numExperiments * 3);
-    // its already and array so turning it into an array has made it 2D 
+    // its already and array so turning it into an array has made it 2D
     expect(results['NBody'][0][0]).toBeCloseTo(432.783, 2);
   });
 

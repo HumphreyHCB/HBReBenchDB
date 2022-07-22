@@ -304,10 +304,10 @@ describe('Recording a ReBench execution from payload files', () => {
       );
 
       await db.awaitQuiescentTimelineUpdater();
-      
+
       const measurements2 = await db.query(
         'SELECT SUM(cardinality(value)) FROM Measurement'
-      );      
+      );
       expect(recMs).toEqual(460);
       expect(recPs).toEqual(0);
       expect(parseInt(measurements.rows[0].cnt)).toEqual(460 + 4);
