@@ -25,16 +25,15 @@ rebenchdb <- connect_to_rebenchdb(db_name, db_user, db_pass)
 
 dbBegin(rebenchdb)
 qry <- dbSendQuery(rebenchdb, "
-WITH deletedJobs AS ( 
-    DELETE FROM TimelineCalcJob tcj
-    RETURNING tcj.trialId, tcj.runId, tcj.criterion
-)
+WITH DEL AS ( 
+  DELETE FROM TimelineCalcJob tcj
+  RETURNING tcj.trialId, tcj.runId, tcj.criterion
+ )
 SELECT m.runId, m.trialId, m.criterion, m.value
-    FROM deletedJobs d
-    JOIN Measurement m ON
-      d.trialId = m.trialId AND
-      d.runId = m.runId AND
-      d.criterion = m.criterion
+FROM DEL d
+JOIN Measurement m ON d.trialId = m.trialId AND
+  d.runId = m.runId AND
+  d.criterion = m.criterion
 ", immediate = TRUE)
 result <- dbFetch(qry)
 dbClearResult(qry)
@@ -57,6 +56,7 @@ calc_stats <- function (data) {
       median = median(value),
       numsamples = length(value),
 
+      
       bci95low = get_bca(value, num_replicates)$lower,
       bci95up = get_bca(value, num_replicates)$upper,
       .groups = "drop")
