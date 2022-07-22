@@ -20,7 +20,7 @@ source("../views/rebenchdb.R", chdir = TRUE)
 source("../views/stats.R", chdir = TRUE)
 
 suppressMessages(library(dplyr))
-
+library(tidyr)
 rebenchdb <- connect_to_rebenchdb(db_name, db_user, db_pass)
 
 dbBegin(rebenchdb)
@@ -38,7 +38,6 @@ JOIN Measurement m ON d.trialId = m.trialId AND
 result <- dbFetch(qry)
 dbClearResult(qry)
 dbCommit(rebenchdb)
-print(result)
 convert_array <- function(x) {
     x <- gsub("(^\\{|\\}$)", "", x)
     strsplit(x, split = ",")
@@ -54,7 +53,7 @@ result <-
     mutate(value = convert_double_array(value))
 
     
-print(result)
+result <- unnest(result, cols = c(value))   
 
 # View(result)
 # result$runid <- factor(result$runid)

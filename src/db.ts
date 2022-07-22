@@ -930,12 +930,10 @@ export abstract class Database {
           continue;
         }
 
-        let iMID = ""
+        let iMID = ""       
         // build a id for each unquie Measurement
         iMID = iMID.concat(run.id.toString() +" "+ trial.id.toString() +" "+ d.in.toString() +" "+ criteria.get(m.c).id.toString())
-        if (iterationMap.has(iMID)) { 
-          // if Measurement has already been recoded then we are in next iteration for that measurement
-          // this a nasty workaround due to typescrpit Map's always return T | undefined
+        if (iterationMap.has(iMID)) {                    
           let value = iterationMap.get(iMID);
           if (value !== undefined) {
           } else {

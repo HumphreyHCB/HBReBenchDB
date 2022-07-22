@@ -29,10 +29,10 @@ export async function dashResults(
 ): Promise<{ timeSeries: Record<string, number[]> }> {
   const result = await db.query(
     `SELECT rank_filter.* FROM (
-      SELECT t.startTime, m.iteration, value, b.name as benchmark,
+      SELECT t.startTime, value, b.name as benchmark,
         rank() OVER (
           PARTITION BY b.id
-          ORDER BY t.startTime DESC, m.iteration DESC
+          ORDER BY t.startTime DESC
         )
         FROM Measurement m
           JOIN Trial t ON  m.trialId = t.id
@@ -40,7 +40,7 @@ export async function dashResults(
           JOIN Run r ON m.runId = r.id
           JOIN Benchmark b ON r.benchmarkId = b.id
         WHERE projectId = $1
-        ORDER BY t.startTime, m.iteration
+        ORDER BY t.startTime
       ) rank_filter WHERE RANK <= 100`,
     [projectId]
   );

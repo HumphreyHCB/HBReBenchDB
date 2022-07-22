@@ -304,12 +304,16 @@ describe('Recording a ReBench execution from payload files', () => {
       );
 
       await db.awaitQuiescentTimelineUpdater();
-
-      expect(recMs).toEqual(459928);
+      
+      const measurements2 = await db.query(
+        'SELECT SUM(cardinality(value)) FROM Measurement'
+      );      
+      expect(recMs).toEqual(460);
       expect(recPs).toEqual(0);
-      expect(parseInt(measurements.rows[0].cnt)).toEqual(459928 + 4);
+      expect(parseInt(measurements.rows[0].cnt)).toEqual(460 + 4);
       const timeline = await db.query('SELECT * from Timeline');
       expect(timeline.rowCount).toEqual(462);
+      expect(parseInt(measurements2.rows[0].sum)).toEqual(459928 + 4);
     },
     timeoutForLargeDataTest
   );
