@@ -56,9 +56,13 @@ calc_stats <- function (data) {
       median = median(value),
       numsamples = length(value),
 
+<<<<<<< HEAD
       
       bci95low = get_bca(value, num_replicates)$lower,
       bci95up = get_bca(value, num_replicates)$upper,
+=======
+      get_bca(value, num_replicates),
+>>>>>>> 0231663 (Rely on new summarise semantics to avoid calling get_bca twice)
       .groups = "drop")
   res
 }
