@@ -139,16 +139,29 @@ get_profile_availability <- function(rebenchdb, hash_1, hash_2) {
   }
 
   convert_double_array <- function(x) {
-      vapply(convert_array(x),as.double,double(1))
+      sapply(convert_array(x),as.double)
   }
 
 factorize_result <- function(result) {
   result <-
     result |>     
-      mutate(iteration = lengths(result$value)) |>
       mutate(value = convert_double_array(result$value)) 
 
-  result <- unnest(result, cols = c(value))  
+  iterations <- list()
+  for(i in result$value)
+  {
+    y <- 1
+    for(j in i)
+    { 
+      iterations[[length(iterations) + 1]] <- y
+      y <- y+1
+    }
+  }
+  result <- unnest(result, cols = c(value)) 
+
+  result <-
+    result |>     
+      mutate(iteration = as.integer(iterations)) 
 
   result$expid <- factor(result$expid)
   result$trialid <- factor(result$trialid)
