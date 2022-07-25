@@ -2,6 +2,7 @@
 ## Exposes standardized data sets for access by reports.
 library(RPostgres)
 library(DBI)
+library(tidyr)
 suppressMessages(library(qs))
 
 load_data_file <- function(filename) {
@@ -44,7 +45,7 @@ main_data_select <- "
     SELECT expId, runId, trialId, substring(commitId, 1, 6) as commitid,
       benchmark.name as bench, executor.name as exe, suite.name as suite,
       cmdline, varValue, cores, inputSize, extraArgs,
-      invocation, iteration, warmup,
+      invocation, warmup,
       criterion.name as criterion, criterion.unit as unit,
       value, envid"
 
@@ -63,7 +64,7 @@ get_measures_for_comparison <- function(rebenchdb, hash_1, hash_2) {
   qry <- dbSendQuery(rebenchdb,
             paste0(main_data_select, main_data_from,
                    "WHERE commitId = $1 OR commitid = $2
-                    ORDER BY expId, runId, invocation, iteration, criterion"))
+                    ORDER BY expId, runId, invocation, criterion"))
   dbBind(qry, list(hash_1, hash_2))
   result <- dbFetch(qry)
   dbClearResult(qry)
@@ -132,8 +133,22 @@ get_profile_availability <- function(rebenchdb, hash_1, hash_2) {
   
   factorize_result(result)
 }
+  convert_array <- function(x) {
+    x <- gsub("(^\\{|\\}$)", "", x)
+    strsplit(x, split = ",")
+  }
+
+  convert_double_array <- function(x) {
+      vapply(convert_array(x),as.double,double(1))
+  }
 
 factorize_result <- function(result) {
+  result <-
+    result |> 
+      mutate(value = convert_double_array(result$value)) 
+
+  result <- unnest(result, cols = c(value))  
+
   result$expid <- factor(result$expid)
   result$trialid <- factor(result$trialid)
   result$runid <- factor(result$runid)
