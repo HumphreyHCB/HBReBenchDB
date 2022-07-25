@@ -144,7 +144,8 @@ get_profile_availability <- function(rebenchdb, hash_1, hash_2) {
 
 factorize_result <- function(result) {
   result <-
-    result |> 
+    result |>     
+      mutate(iteration = lengths(result$value)) |>
       mutate(value = convert_double_array(result$value)) 
 
   result <- unnest(result, cols = c(value))  
