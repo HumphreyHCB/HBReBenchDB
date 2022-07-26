@@ -68,7 +68,8 @@ get_measures_for_comparison <- function(rebenchdb, hash_1, hash_2) {
   dbBind(qry, list(hash_1, hash_2))
   result <- dbFetch(qry)
   dbClearResult(qry)
-
+  
+  result <- restore_iteration(result)
   factorize_result(result)
 }
 
@@ -76,11 +77,12 @@ get_measures_for_experiment <- function(rebenchdb, exp_id) {
   qry <- dbSendQuery(rebenchdb,
                      paste0(main_data_select, main_data_from,
                             "WHERE Experiment.id = $1
-                    ORDER BY runId, trialId, cmdline, invocation, iteration, criterion"))
+                    ORDER BY runId, trialId, cmdline, invocation, criterion"))
   dbBind(qry, list(exp_id))
   result <- dbFetch(qry)
   dbClearResult(qry)
-  
+
+  result <- restore_iteration(result)
   factorize_result(result)
 }
 
@@ -142,27 +144,35 @@ get_profile_availability <- function(rebenchdb, hash_1, hash_2) {
       sapply(convert_array(x),as.double)
   }
 
-factorize_result <- function(result) {
-  result <-
+restore_iteration <- function(result) {
+    result <-
     result |>     
       mutate(value = convert_double_array(result$value)) 
 
+  print(result$value)
   iterations <- list()
   for(i in result$value)
   {
     y <- 1
     for(j in i)
-    { 
+    {      
       iterations[[length(iterations) + 1]] <- y
       y <- y+1
     }
   }
-  result <- unnest(result, cols = c(value)) 
 
+  result <- unnest(result, cols = c(value)) 
+  
   result <-
     result |>     
       mutate(iteration = as.integer(iterations)) 
 
+  #print(result |> select(c(bench,value, invocation, iteration)))
+  result
+}
+
+factorize_result <- function(result) {
+   
   result$expid <- factor(result$expid)
   result$trialid <- factor(result$trialid)
   result$runid <- factor(result$runid)

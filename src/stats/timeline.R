@@ -45,7 +45,7 @@ convert_array <- function(x) {
 }
 
 convert_double_array <- function(x) {
-    lapply(convert_array(x), as.double)
+    sapply(convert_array(x), as.double)
 }
 
 result <-
