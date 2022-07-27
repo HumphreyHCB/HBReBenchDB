@@ -29,8 +29,11 @@ export async function dashResults(
 ): Promise<{ timeSeries: Record<string, number[]> }> {
   const result = await db.query(
     `WITH explodedValueMeasurement AS(
-      WITH orderedMeasurement AS(SELECT runid,trialid,criterion,invocation, value FROM measurement ORDER BY runid,trialid,criterion,invocation ASC)
-      SELECT m.runid,m.trialid,m.criterion,m.invocation,a.value, a.iteration FROM orderedMeasurement as m
+      WITH orderedMeasurement AS(
+        SELECT runid,trialid,criterion,invocation,value 
+        FROM measurement ORDER BY runid,trialid,criterion,invocation ASC)
+      SELECT m.runid,m.trialid,m.criterion,m.invocation,a.value, a.iteration 
+      FROM orderedMeasurement as m
       LEFT   JOIN LATERAL unnest(m.value)
                           WITH ORDINALITY AS a(value, iteration) ON true 
       )
