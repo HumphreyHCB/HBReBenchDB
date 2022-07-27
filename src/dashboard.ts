@@ -29,10 +29,10 @@ export async function dashResults(
 ): Promise<{ timeSeries: Record<string, number[]> }> {
   const result = await db.query(
     `SELECT rank_filter.* FROM (
-      SELECT t.startTime, value, b.name as benchmark,
+      SELECT t.startTime, cardinality(value) as iterations, value, b.name as benchmark,
         rank() OVER (
           PARTITION BY b.id
-          ORDER BY t.startTime DESC
+          ORDER BY t.startTime, cardinality(value) DESC
         )
         FROM Measurement m
           JOIN Trial t ON  m.trialId = t.id
@@ -40,7 +40,7 @@ export async function dashResults(
           JOIN Run r ON m.runId = r.id
           JOIN Benchmark b ON r.benchmarkId = b.id
         WHERE projectId = $1
-        ORDER BY t.startTime
+        ORDER BY t.startTime, iterations
       ) rank_filter WHERE RANK <= 100`,
     [projectId]
   );
@@ -52,7 +52,23 @@ export async function dashResults(
     if (!(r.benchmark in timeSeries)) {
       timeSeries[r.benchmark] = [];
     }
-    timeSeries[r.benchmark].push(r.value);
+    // if iteration > 1 then value has mutiple values
+    if (r.iteration > 1) {
+      for (let index = 0; index < r.value.length; index++) {
+        // if the benchmark we are adding too has already 100 values, then we can skip this whole row
+        if (timeSeries[r.benchmark].length >=100) {
+          continue;
+        }
+        else{
+        timeSeries[r.benchmark].push(r.value[index]);
+        }
+      }
+    }
+    else{
+      if (timeSeries[r.benchmark].length >=100) { }
+      else{timeSeries[r.benchmark].push(r.value);}
+    
+    }
   }
   return { timeSeries };
 }
