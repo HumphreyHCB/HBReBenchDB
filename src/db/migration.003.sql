@@ -5,7 +5,7 @@ CREATE TABLE tempmeasurement(
     trialid smallint NOT NULL,
     criterion smallint NOT NULL,
     invocation smallint NOT NULL,
-    value real[] NOT NULL,
+    value float4[] NOT NULL,
     PRIMARY KEY(runid,trialid,criterion,invocation)
 );
 -- order the measurement table by primary key, then insert into the new temporary table the aggregate of value for iteration
