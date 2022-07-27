@@ -28,20 +28,26 @@ export async function dashResults(
   db: Database
 ): Promise<{ timeSeries: Record<string, number[]> }> {
   const result = await db.query(
-    `SELECT rank_filter.* FROM (
-      SELECT t.startTime, cardinality(value) as iterations, value, b.name as benchmark,
-        rank() OVER (
-          PARTITION BY b.id
-          ORDER BY t.startTime, cardinality(value) DESC
-        )
-        FROM Measurement m
-          JOIN Trial t ON  m.trialId = t.id
-          JOIN Experiment e ON t.expId = e.id
-          JOIN Run r ON m.runId = r.id
-          JOIN Benchmark b ON r.benchmarkId = b.id
-        WHERE projectId = $1
-        ORDER BY t.startTime, iterations
-      ) rank_filter WHERE RANK <= 100`,
+    `WITH explodedValueMeasurement AS(
+      WITH orderedMeasurement AS(SELECT runid,trialid,criterion,invocation, value FROM measurement ORDER BY runid,trialid,criterion,invocation ASC)
+      SELECT m.runid,m.trialid,m.criterion,m.invocation,a.value, a.iteration FROM orderedMeasurement as m
+      LEFT   JOIN LATERAL unnest(m.value)
+                          WITH ORDINALITY AS a(value, iteration) ON true 
+      )
+      SELECT rank_filter.* FROM (
+            SELECT t.startTime, m.iteration, value, b.name as benchmark,
+              rank() OVER (
+                PARTITION BY b.id
+                ORDER BY t.startTime DESC, m.iteration DESC
+              )
+              FROM explodedValueMeasurement m
+                JOIN Trial t ON  m.trialId = t.id
+                JOIN Experiment e ON t.expId = e.id
+                JOIN Run r ON m.runId = r.id
+                JOIN Benchmark b ON r.benchmarkId = b.id
+              WHERE projectId = $1
+              ORDER BY t.startTime, m.iteration
+            ) rank_filter WHERE RANK <= 101`,
     [projectId]
   );
   // dropped to avoid getting too much data:
@@ -52,23 +58,7 @@ export async function dashResults(
     if (!(r.benchmark in timeSeries)) {
       timeSeries[r.benchmark] = [];
     }
-    // if iteration > 1 then value has mutiple values
-    if (r.iteration > 1) {
-      for (let index = 0; index < r.value.length; index++) {
-        // if the benchmark we are adding too has already 100 values, then we can skip this whole row
-        if (timeSeries[r.benchmark].length >=100) {
-          continue;
-        }
-        else{
-        timeSeries[r.benchmark].push(r.value[index]);
-        }
-      }
-    }
-    else{
-      if (timeSeries[r.benchmark].length >=100) { }
-      else{timeSeries[r.benchmark].push(r.value);}
-    
-    }
+    timeSeries[r.benchmark].push(r.value);
   }
   return { timeSeries };
 }
